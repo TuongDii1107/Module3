@@ -525,3 +525,74 @@ from ket_qua_hoc_tap kq
 join hoc_sinh hs on kq.ma_hs = hs.ma_hs
 join lop on hs.ma_lop = lop.ma_lop
 where kq.ngay_gio_thi_cuoi_ky >= '2023-08-20 10:00:00' and kq.ngay_gio_thi_cuoi_ky <= '2023-08-20 20:30:00';
+--------------------------------------------------------------------------------------------------------------------------------------------
+-- Hãy liệt kê:
+-- a. Liệt kê những địa chỉ khác nhau trong bảng hoc_sinh (bằng 2 cách khác nhau) ()
+-- cách 1: distinct
+select distinct dia_chi from hoc_sinh;
+-- cách 2: group by
+select dia_chi
+from hoc_sinh
+group by dia_chi;
+-- b. Liệt kê ho_ten_hs, gioi_tinh của các nhóm được phân nhóm theo ho_ten_hs và gioi_tinh trong bảng hoc_sinh.
+select ho_ten_hs, gioi_tinh 
+from hoc_sinh
+group by ho_ten_hs, gioi_tinh;
+-- c. Liệt kê ho_ten_hs của các nhóm được phân nhóm theo ho_ten_hs và gioi_tinh trong bảng hoc_sinh. Chú ý thử giải thích vì sao không liệt kê gioi_tinh mà vẫn không bị lỗi. ()
+select ho_ten_hs
+from hoc_sinh
+group by ho_ten_hs, gioi_tinh;
+-- vì 
+-- d. Liệt kê ma_mh, ten_mh, diem_thi_cuoi_ky của từng môn học chia theo từng mức điểm thi cuối kỳ. (Gợi ý: chỉ liệt kê những môn đã từng có học sinh thi cuối kỳ). ()
+select mh.ma_mh, mh.ten_mh, kq.diem_thi_cuoi_ky
+from ket_qua_hoc_tap kq
+join mon_hoc mh on mh.ma_mh = kq.ma_mh
+where kq.diem_thi_cuoi_ky is not null
+group by mh.ma_mh, mh.ten_mh, kq.diem_thi_cuoi_ky;
+-- e. Liệt kê ma_gv, ten_gv của những giáo viên đã từng được phân công phụ trách ít nhất 1 môn học. Nếu ma_gv, ten_gv trùng lặp nhiều lần thì chỉ hiển thị ra 1 lần trong kết quả trả về.
+select distinct ma_gv, ho_ten_gv from giao_vien join phu_trach_bo_mon on giao_vien.ma_gv = phu_trach_bo_mon.ma_gvpt;
+-- f. Liệt kê tháng và năm của những tháng và năm đã có ít nhất 1 học sinh tham gia thi cuối kỳ (đã có diem_thi_cuoi_ky rồi). ()
+select month(ket_qua_hoc_tap.ngay_gio_thi_cuoi_ky) as thang, year(ket_qua_hoc_tap.ngay_gio_thi_cuoi_ky) as nam
+from ket_qua_hoc_tap
+where ket_qua_hoc_tap.diem_thi_cuoi_ky is not null
+group by thang, nam;
+-- g. Liệt kê họ tên của những học sinh có địa chỉ ở Hải Châu và từng thi (giữa kỳ hoặc cuối kỳ) ít nhất 1 lần. Nếu họ tên trùng lặp thì chỉ hiển thị ra 1 lần trong kết quả trả về. Yêu cầu: Không được sử dụng từ khoá DISTINCT.
+select hoc_sinh.ho_ten_hs
+from hoc_sinh 
+join ket_qua_hoc_tap on hoc_sinh.ma_hs = ket_qua_hoc_tap.ma_hs
+where hoc_sinh.dia_chi = 'Hải Châu' and ket_qua_hoc_tap.diem_thi_giua_ky is not null and ket_qua_hoc_tap.diem_thi_cuoi_ky is not null 
+group by hoc_sinh.ho_ten_hs;
+-----------------------------------------------------------------------------------------------------------------------------------------
+-- Hoc sinh chưa từng thi môn nào
+select ho_ten_hs
+from hoc_sinh
+where ma_hs not in (select distinct ma_hs from ket_qua_hoc_tap);
+-- b. Giáo viên chưa từng phụ trách môn học nào
+select ho_ten_gv
+from giao_vien
+where ma_gv not in (SELECT DISTINCT ma_gv FROM phu_trach_bo_mon);
+-- Câu c Giáo viên chưa từng chủ nhiệm lớp nào --
+select ho_ten_gv
+from giao_vien
+where ma_gv not in (SELECT DISTINCT ma_gvcn FROM lop);
+-- Câu D --
+select ten_mh
+from mon_hoc
+where ma_mh not in( select distinct ma_mh from ket_qua_hoc_tap);
+-- e. Đếm xem tương ứng với mỗi địa chỉ (của học sinh), số lượng học sinh đang ở mỗi địa chỉ là bao nhiêu em. Chỉ hiển thị kế tqua cho những địa chỉ có ít nhất 5 học sinh đang ở đó
+select dia_chi, count(*) AS so_luong
+from hoc_sinh
+group by dia_chi
+having so_luong >= 5;
+-- f. Liệt kê điểm thi trung bình của từng môn học (dựa vào điểm thi cuối kỳ mà các học sinh đã từng thi). Chỉ liệt kê những môn có điểm trung bình từ 5 đến 10
+select mh.ten_mh, avg(kq.diem_thi_cuoi_ky) as diem_trung_binh
+from mon_hoc mh
+join ket_qua_hoc_tap kq ON mh.ma_mh = kq.ma_mh
+group by mh.ma_mh, mh.ten_mh
+having diem_trung_binh between 5 and 10;
+-- g. Tính điểm thi trung bình của từng học sinh trong trường. Chỉ tính điểm trung bình cho những học sinh đã từng thi cuối kỳ cho ít nhất 1 môn. Dựa vào cột điểm thi cuối kỳ để tính. Chỉ hiển thị những học sinh có điểm trung bình trên 8
+select hs.ma_hs, hs.ho_ten_hs, avg(kq.diem_thi_cuoi_ky) as diem_trung_binh
+from hoc_sinh hs
+join ket_qua_hoc_tap kq on hs.ma_hs = kq.ma_hs
+group by hs.ma_hs, hs.ho_ten_hs
+having diem_trung_binh > 8;
